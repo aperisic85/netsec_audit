@@ -71,9 +71,5 @@ fn finding_from(
 /// Exit code policy: non-zero if anything at or above `fail_on` is present.
 #[must_use]
 pub fn exit_code(report: &Report, fail_on: Severity) -> i32 {
-    if report.count_at_least(fail_on) > 0 {
-        1
-    } else {
-        0
-    }
+    i32::from(report.count_at_least(fail_on) > 0)
 }
