@@ -3,10 +3,10 @@ name = "netsec-audit"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.74"
-authors = ["Ante"]
+authors = ["Ante Perisic,aperisic@proton.me"]
 description = "Security configuration auditor for network device configs (Cisco IOS first). Offline, rule-driven, CIS-mapped."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourname/netsec-audit"
+repository = "https://github.com/aperisic85/netsec-audit"
 keywords = ["security", "cisco", "audit", "network", "cis"]
 categories = ["command-line-utilities"]
 
