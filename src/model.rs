@@ -92,6 +92,19 @@ pub struct Rule {
     /// Optional CIS Benchmark reference (e.g. `CIS Cisco IOS 1.1.1`).
     #[serde(default)]
     pub cis: Option<String>,
+    /// Optional section scope: a regex matched against unindented block
+    /// headers (e.g. `^line vty`). When set, the rule is evaluated per
+    /// matching block instead of against the whole config. For
+    /// `absent_regex` rules this flags each non-compliant block; if no
+    /// block matches, the rule stays silent.
+    #[serde(default)]
+    pub within: Option<String>,
+    /// Ids of more specific rules that, when they produce a finding on the
+    /// same line, suppress this rule's finding there. Lets a broad rule
+    /// (e.g. "any SNMP community") defer to a specific one ("community
+    /// 'public'") without double-reporting.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suppressed_by: Vec<String>,
 }
 
 /// A rule violation found in a configuration.
@@ -104,9 +117,11 @@ pub struct Finding {
     /// Severity of the finding.
     pub severity: Severity,
     /// 1-based line number where the issue was found, if applicable.
-    /// `None` for absence-based findings that apply to the whole file.
+    /// For section-scoped absence findings this is the block header line;
+    /// `None` for absence findings that apply to the whole file.
     pub line: Option<usize>,
-    /// The matched line content, trimmed (for present-regex findings).
+    /// The matched line content, trimmed. For section-scoped absence
+    /// findings this is the block header (e.g. `line vty 0 4`).
     pub evidence: Option<String>,
     /// Why this matters.
     pub description: String,
