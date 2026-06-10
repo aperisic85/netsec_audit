@@ -22,6 +22,8 @@ pub struct CompiledRule {
     pub rule: Rule,
     /// The compiled regex.
     pub regex: Regex,
+    /// Compiled section-scope regex, if the rule declares `within`.
+    pub within: Option<Regex>,
 }
 
 /// Load and compile all rules from a TOML file.
@@ -44,7 +46,7 @@ pub fn load_rules(path: &Path) -> Result<Vec<CompiledRule>> {
     parsed.rule.into_iter().map(compile_rule).collect()
 }
 
-/// Compile a single rule's pattern into a regex.
+/// Compile a single rule's pattern (and optional `within` scope) into regexes.
 fn compile_rule(rule: Rule) -> Result<CompiledRule> {
     let pattern = match &rule.kind {
         MatchKind::PresentRegex { pattern } | MatchKind::AbsentRegex { pattern } => pattern,
@@ -53,5 +55,14 @@ fn compile_rule(rule: Rule) -> Result<CompiledRule> {
         rule_id: rule.id.clone(),
         source,
     })?;
-    Ok(CompiledRule { rule, regex })
+    let within = rule
+        .within
+        .as_deref()
+        .map(Regex::new)
+        .transpose()
+        .map_err(|source| AuditError::BadRegex {
+            rule_id: rule.id.clone(),
+            source,
+        })?;
+    Ok(CompiledRule { rule, regex, within })
 }

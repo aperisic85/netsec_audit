@@ -4,6 +4,16 @@
 # match = "present_regex"  -> finding when pattern IS found (one per matching line)
 # match = "absent_regex"   -> finding when pattern is NOT found anywhere
 #
+# Optional keys:
+#   within = '<regex>'      -> evaluate only inside config blocks whose
+#                              unindented header matches (e.g. '^line vty');
+#                              absent_regex then flags each non-compliant
+#                              block, and stays silent if no block matches.
+#   suppressed_by = ["id"]  -> drop this rule's finding when any listed rule
+#                              produced a finding on the same line.
+#
+# Comment lines (starting with '!') are never matched.
+#
 # CIS references are indicative; verify against the current
 # CIS Cisco IOS Benchmark for your platform/version.
 
@@ -53,6 +63,7 @@ title = "SNMP v1/v2c community in use"
 severity = "medium"
 match = "present_regex"
 pattern = 'snmp-server community'
+suppressed_by = ["cisco-ios-snmp-public", "cisco-ios-snmp-private"]
 description = "SNMP v1/v2c lacks encryption and strong authentication; community strings traverse the network in cleartext."
 remediation = "Migrate to SNMPv3 with authPriv."
 cis = "CIS Cisco IOS 3.x"
@@ -89,11 +100,12 @@ cis = "CIS Cisco IOS 2.1.x"
 
 [[rule]]
 id = "cisco-ios-no-vty-acl"
-title = "No access-class (ACL) on VTY lines"
+title = "No access-class (ACL) on VTY line"
 severity = "medium"
 match = "absent_regex"
 pattern = 'access-class'
-description = "Without an access-class on VTY lines, management access is not restricted by source address."
+within = '^line vty'
+description = "Without an access-class on this VTY line block, management access is not restricted by source address."
 remediation = "Apply an 'access-class <acl> in' to VTY lines to limit management sources."
 cis = "CIS Cisco IOS 1.5.x"
 
@@ -119,11 +131,12 @@ cis = "CIS Cisco IOS 4.x"
 
 [[rule]]
 id = "cisco-ios-no-exec-timeout"
-title = "No exec-timeout on lines (possible default/none)"
+title = "No exec-timeout on line"
 severity = "low"
 match = "absent_regex"
 pattern = 'exec-timeout'
-description = "Sessions without an exec-timeout may remain open indefinitely, increasing hijack risk."
+within = '^line (con|vty|aux)'
+description = "Sessions on this line without an exec-timeout may remain open indefinitely, increasing hijack risk."
 remediation = "Set 'exec-timeout 10 0' (or your policy value) on console and VTY lines."
 cis = "CIS Cisco IOS 1.5.x"
 
@@ -142,7 +155,8 @@ id = "cisco-ios-aux-port"
 title = "AUX port not explicitly disabled"
 severity = "low"
 match = "absent_regex"
-pattern = 'no exec'
+pattern = 'no exec\s*$'
+within = '^line aux'
 description = "An enabled AUX port can provide an overlooked management entry point."
 remediation = "Disable the EXEC process on the AUX line: 'line aux 0' then 'no exec'."
 cis = "CIS Cisco IOS 1.5.x"
