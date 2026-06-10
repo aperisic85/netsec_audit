@@ -28,6 +28,17 @@ remediation = "Use 'transport input ssh' on all VTY lines and disable telnet."
 cis = "CIS Cisco IOS 1.5.x"
 
 [[rule]]
+id = "cisco-ios-vty-transport-all"
+title = "All transports allowed on VTY lines"
+severity = "high"
+match = "present_regex"
+pattern = 'transport input\s+all\b'
+within = '^line vty'
+description = "'transport input all' permits every inbound protocol on the VTY lines, including cleartext telnet and rlogin."
+remediation = "Restrict to 'transport input ssh' on all VTY lines."
+cis = "CIS Cisco IOS 1.5.x"
+
+[[rule]]
 id = "cisco-ios-no-password-encryption"
 title = "Password encryption service disabled"
 severity = "medium"
@@ -58,12 +69,23 @@ remediation = "Remove default communities; use SNMPv3 and restrict with ACLs."
 cis = "CIS Cisco IOS 3.x"
 
 [[rule]]
+id = "cisco-ios-snmp-rw-community"
+title = "SNMP community with write (RW) access"
+severity = "critical"
+match = "present_regex"
+pattern = '(?i)^snmp-server community\s+\S+\s+rw\b'
+suppressed_by = ["cisco-ios-snmp-private"]
+description = "A write-enabled SNMP community allows remote reconfiguration of the device by anyone who learns the string."
+remediation = "Remove RW communities; if write access is required, use SNMPv3 authPriv with a restrictive view and ACL."
+cis = "CIS Cisco IOS 3.x"
+
+[[rule]]
 id = "cisco-ios-snmp-v1v2"
 title = "SNMP v1/v2c community in use"
 severity = "medium"
 match = "present_regex"
 pattern = 'snmp-server community'
-suppressed_by = ["cisco-ios-snmp-public", "cisco-ios-snmp-private"]
+suppressed_by = ["cisco-ios-snmp-public", "cisco-ios-snmp-private", "cisco-ios-snmp-rw-community"]
 description = "SNMP v1/v2c lacks encryption and strong authentication; community strings traverse the network in cleartext."
 remediation = "Migrate to SNMPv3 with authPriv."
 cis = "CIS Cisco IOS 3.x"
@@ -130,6 +152,17 @@ remediation = "Add 'service timestamps log datetime msec'."
 cis = "CIS Cisco IOS 4.x"
 
 [[rule]]
+id = "cisco-ios-exec-timeout-disabled"
+title = "exec-timeout disabled (0 0) on line"
+severity = "medium"
+match = "present_regex"
+pattern = 'exec-timeout\s+0\s+0\s*$'
+within = '^line (con|vty|aux)'
+description = "'exec-timeout 0 0' disables the idle timeout entirely, leaving abandoned sessions open indefinitely."
+remediation = "Set a finite timeout, e.g. 'exec-timeout 10 0', on console and VTY lines."
+cis = "CIS Cisco IOS 1.5.x"
+
+[[rule]]
 id = "cisco-ios-no-exec-timeout"
 title = "No exec-timeout on line"
 severity = "low"
@@ -171,6 +204,26 @@ description = "A local username stores its password in cleartext (type 0); anyon
 remediation = "Replace with 'username <name> secret <password>' (type 9/scrypt) and rotate the exposed credential."
 
 [[rule]]
+id = "cisco-ios-username-type7-password"
+title = "Local user with reversible (type 7) password"
+severity = "high"
+match = "present_regex"
+pattern = '^username\s+\S+.*\bpassword\s+7\s'
+description = "Type 7 encoding is a trivially reversible obfuscation, not encryption; the credential is recoverable by anyone with config access."
+remediation = "Replace with 'username <name> secret <password>' and rotate the exposed credential."
+
+[[rule]]
+id = "cisco-ios-line-password"
+title = "Static line password configured"
+severity = "medium"
+match = "present_regex"
+pattern = '^\s+password\s+\S'
+within = '^line (con|vty|aux)'
+description = "A shared static password on this line is stored in cleartext or reversible type-7 encoding and cannot be attributed to an individual user."
+remediation = "Use AAA with local users ('login local' plus 'username ... secret') or a TACACS+/RADIUS method list instead of line passwords."
+cis = "CIS Cisco IOS 1.1.x"
+
+[[rule]]
 id = "cisco-ios-ftp-plaintext-credentials"
 title = "FTP credentials stored in configuration"
 severity = "medium"
@@ -208,3 +261,43 @@ pattern = '^ntp server\s+\S+\s*$'
 description = "An unauthenticated NTP source can be spoofed to skew the clock, undermining log timestamps and certificate validation."
 remediation = "Configure 'ntp authenticate', 'ntp authentication-key', 'ntp trusted-key' and add 'key <id>' to each 'ntp server' line."
 cis = "CIS Cisco IOS 2.3.x"
+
+[[rule]]
+id = "cisco-ios-no-ssh-version-2"
+title = "SSH not restricted to version 2"
+severity = "medium"
+match = "absent_regex"
+pattern = '^ip ssh version 2'
+description = "Without 'ip ssh version 2', the device may accept SSHv1 connections, which have known cryptographic weaknesses."
+remediation = "Configure 'ip ssh version 2' (requires an RSA key of at least 768 bits; 2048+ recommended)."
+cis = "CIS Cisco IOS 1.6.x"
+
+[[rule]]
+id = "cisco-ios-no-login-banner"
+title = "No login banner configured"
+severity = "low"
+match = "absent_regex"
+pattern = '^banner\s+(motd|login|exec)'
+description = "Without a warning banner, prosecution of unauthorised access may be harder and accidental access goes unwarned."
+remediation = "Configure 'banner login' (or 'banner motd') with an authorised-use-only notice."
+cis = "CIS Cisco IOS 1.7.x"
+
+[[rule]]
+id = "cisco-ios-source-routing"
+title = "IP source routing not disabled"
+severity = "low"
+match = "absent_regex"
+pattern = '^no ip source-route'
+description = "IP source routing lets senders dictate packet paths and can be abused to bypass routing policy and security controls."
+remediation = "Add 'no ip source-route' to the global configuration."
+cis = "CIS Cisco IOS 3.1.1"
+
+[[rule]]
+id = "cisco-ios-no-login-block"
+title = "No protection against login brute force"
+severity = "low"
+match = "absent_regex"
+pattern = '^login block-for'
+description = "Without 'login block-for', the device accepts unlimited rapid login attempts, easing password brute-forcing."
+remediation = "Configure e.g. 'login block-for 120 attempts 3 within 60' together with 'login delay 1'."
+cis = "CIS Cisco IOS 1.2.x"
