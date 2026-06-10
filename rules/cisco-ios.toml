@@ -1,0 +1,148 @@
+# netsec-audit — Cisco IOS rule set
+# Each [[rule]] is evaluated independently against the config.
+#
+# match = "present_regex"  -> finding when pattern IS found (one per matching line)
+# match = "absent_regex"   -> finding when pattern is NOT found anywhere
+#
+# CIS references are indicative; verify against the current
+# CIS Cisco IOS Benchmark for your platform/version.
+
+[[rule]]
+id = "cisco-ios-telnet-enabled"
+title = "Telnet enabled on VTY lines"
+severity = "high"
+match = "present_regex"
+pattern = 'transport input.*telnet'
+description = "Telnet transmits credentials and session data in cleartext, allowing trivial interception."
+remediation = "Use 'transport input ssh' on all VTY lines and disable telnet."
+cis = "CIS Cisco IOS 1.5.x"
+
+[[rule]]
+id = "cisco-ios-no-password-encryption"
+title = "Password encryption service disabled"
+severity = "medium"
+match = "absent_regex"
+pattern = 'service password-encryption'
+description = "Without password encryption, type-7 passwords are stored in plaintext in the running config."
+remediation = "Add 'service password-encryption' to the global configuration."
+cis = "CIS Cisco IOS 1.1.1"
+
+[[rule]]
+id = "cisco-ios-snmp-public"
+title = "Default SNMP community string 'public'"
+severity = "high"
+match = "present_regex"
+pattern = 'snmp-server community\s+public'
+description = "The well-known 'public' community string allows unauthorised SNMP read access."
+remediation = "Remove default communities; use SNMPv3 with authentication and encryption."
+cis = "CIS Cisco IOS 3.x"
+
+[[rule]]
+id = "cisco-ios-snmp-private"
+title = "Default SNMP community string 'private'"
+severity = "critical"
+match = "present_regex"
+pattern = 'snmp-server community\s+private'
+description = "The 'private' community typically grants SNMP write access, enabling remote reconfiguration."
+remediation = "Remove default communities; use SNMPv3 and restrict with ACLs."
+cis = "CIS Cisco IOS 3.x"
+
+[[rule]]
+id = "cisco-ios-snmp-v1v2"
+title = "SNMP v1/v2c community in use"
+severity = "medium"
+match = "present_regex"
+pattern = 'snmp-server community'
+description = "SNMP v1/v2c lacks encryption and strong authentication; community strings traverse the network in cleartext."
+remediation = "Migrate to SNMPv3 with authPriv."
+cis = "CIS Cisco IOS 3.x"
+
+[[rule]]
+id = "cisco-ios-no-enable-secret"
+title = "Enable secret not configured"
+severity = "high"
+match = "absent_regex"
+pattern = 'enable secret'
+description = "Without 'enable secret', privileged access may rely on weak or absent protection."
+remediation = "Configure 'enable secret' (uses a stronger hash than 'enable password')."
+cis = "CIS Cisco IOS 1.1.2"
+
+[[rule]]
+id = "cisco-ios-enable-password-weak"
+title = "Weak 'enable password' in use"
+severity = "high"
+match = "present_regex"
+pattern = '^enable password'
+description = "'enable password' uses reversible type-7 encoding rather than a secure hash."
+remediation = "Replace with 'enable secret'."
+cis = "CIS Cisco IOS 1.1.2"
+
+[[rule]]
+id = "cisco-ios-http-server"
+title = "HTTP server enabled"
+severity = "medium"
+match = "present_regex"
+pattern = '^ip http server'
+description = "The embedded HTTP server (non-TLS) exposes management over cleartext and has a history of vulnerabilities."
+remediation = "Disable with 'no ip http server'; use 'ip http secure-server' only if management via web is required."
+cis = "CIS Cisco IOS 2.1.x"
+
+[[rule]]
+id = "cisco-ios-no-vty-acl"
+title = "No access-class (ACL) on VTY lines"
+severity = "medium"
+match = "absent_regex"
+pattern = 'access-class'
+description = "Without an access-class on VTY lines, management access is not restricted by source address."
+remediation = "Apply an 'access-class <acl> in' to VTY lines to limit management sources."
+cis = "CIS Cisco IOS 1.5.x"
+
+[[rule]]
+id = "cisco-ios-no-logging"
+title = "No syslog logging host configured"
+severity = "low"
+match = "absent_regex"
+pattern = 'logging host|logging\s+\d+\.\d+\.\d+\.\d+'
+description = "Without a remote syslog target, security-relevant events are not retained off-device."
+remediation = "Configure 'logging host <syslog-ip>' to forward logs to a central collector."
+cis = "CIS Cisco IOS 4.x"
+
+[[rule]]
+id = "cisco-ios-no-service-timestamps"
+title = "Log timestamps not enabled"
+severity = "low"
+match = "absent_regex"
+pattern = 'service timestamps log'
+description = "Without timestamps, log correlation during incident response is unreliable."
+remediation = "Add 'service timestamps log datetime msec'."
+cis = "CIS Cisco IOS 4.x"
+
+[[rule]]
+id = "cisco-ios-no-exec-timeout"
+title = "No exec-timeout on lines (possible default/none)"
+severity = "low"
+match = "absent_regex"
+pattern = 'exec-timeout'
+description = "Sessions without an exec-timeout may remain open indefinitely, increasing hijack risk."
+remediation = "Set 'exec-timeout 10 0' (or your policy value) on console and VTY lines."
+cis = "CIS Cisco IOS 1.5.x"
+
+[[rule]]
+id = "cisco-ios-cdp-global"
+title = "CDP enabled globally"
+severity = "low"
+match = "absent_regex"
+pattern = 'no cdp run'
+description = "CDP leaks device/topology information and is rarely needed on all interfaces."
+remediation = "Disable globally with 'no cdp run' where not required, or per-interface with 'no cdp enable'."
+cis = "CIS Cisco IOS 2.x"
+
+[[rule]]
+id = "cisco-ios-aux-port"
+title = "AUX port not explicitly disabled"
+severity = "low"
+match = "absent_regex"
+pattern = 'no exec'
+description = "An enabled AUX port can provide an overlooked management entry point."
+remediation = "Disable the EXEC process on the AUX line: 'line aux 0' then 'no exec'."
+cis = "CIS Cisco IOS 1.5.x"

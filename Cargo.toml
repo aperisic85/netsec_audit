@@ -1,0 +1,30 @@
+[package]
+name = "netsec-audit"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+authors = ["Ante"]
+description = "Security configuration auditor for network device configs (Cisco IOS first). Offline, rule-driven, CIS-mapped."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourname/netsec-audit"
+keywords = ["security", "cisco", "audit", "network", "cis"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+regex = "1.10"
+anyhow = "1.0"
+thiserror = "1.0"
+serde_json = "1.0"
+once_cell = "1.19"
+
+[dev-dependencies]
+# add proptest here later for property tests
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+panic = "abort"
