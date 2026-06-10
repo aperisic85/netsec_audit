@@ -33,7 +33,7 @@ pub fn render(report: &Report, format: Format, color: bool) -> Result<String> {
 
 fn render_terminal(report: &Report, color: bool) -> String {
     let mut out = String::new();
-    let paint = |code: &str| if color { code } else { "" };
+    let paint = |code: &'static str| if color { code } else { "" };
 
     out.push_str(&format!(
         "{}netsec-audit{}  target: {}\n",
