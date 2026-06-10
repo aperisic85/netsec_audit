@@ -64,13 +64,68 @@ fn example_config_findings_are_section_aware() {
     // Credential and service-hardening rules fire on the example.
     for expected in [
         "cisco-ios-username-plaintext-password",
+        "cisco-ios-username-type7-password",
         "cisco-ios-ftp-plaintext-credentials",
         "cisco-ios-no-aaa-new-model",
         "cisco-ios-snmp-host-not-v3",
         "cisco-ios-ntp-unauthenticated",
+        "cisco-ios-no-ssh-version-2",
+        "cisco-ios-no-login-banner",
+        "cisco-ios-source-routing",
+        "cisco-ios-no-login-block",
     ] {
         assert!(ids.contains(&expected), "expected finding for {expected}");
     }
+
+    // 'line con 0' has 'exec-timeout 0 0': flagged as disabled, not missing.
+    let disabled: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|f| f.rule_id == "cisco-ios-exec-timeout-disabled")
+        .collect();
+    assert_eq!(disabled.len(), 1);
+    assert_eq!(disabled[0].line, Some(16));
+
+    // The shared vty password is flagged inside the line block.
+    let line_pw = report
+        .findings
+        .iter()
+        .find(|f| f.rule_id == "cisco-ios-line-password")
+        .expect("line password finding");
+    assert_eq!(line_pw.line, Some(18));
+
+    // 'private RW' is covered by the more specific default-community rule.
+    assert!(!ids.contains(&"cisco-ios-snmp-rw-community"));
+}
+
+#[test]
+fn custom_rw_community_fires_and_suppresses_generic_rule() {
+    let rules = load_rules(&manifest_path("rules/cisco-ios.toml")).unwrap();
+    let config = "snmp-server community s3cr3t RW\n";
+    let report = engine::audit("test.cfg", config, &rules);
+    let ids: Vec<&str> = report.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert!(ids.contains(&"cisco-ios-snmp-rw-community"));
+    assert!(!ids.contains(&"cisco-ios-snmp-v1v2"));
+}
+
+#[test]
+fn finite_exec_timeout_is_not_flagged_as_disabled() {
+    let rules = load_rules(&manifest_path("rules/cisco-ios.toml")).unwrap();
+    let config = "line vty 0 4\n exec-timeout 10 0\n transport input ssh\n";
+    let report = engine::audit("test.cfg", config, &rules);
+    let ids: Vec<&str> = report.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert!(!ids.contains(&"cisco-ios-exec-timeout-disabled"));
+    assert!(!ids.contains(&"cisco-ios-no-exec-timeout"));
+    assert!(!ids.contains(&"cisco-ios-vty-transport-all"));
+}
+
+#[test]
+fn transport_all_is_flagged_on_vty() {
+    let rules = load_rules(&manifest_path("rules/cisco-ios.toml")).unwrap();
+    let config = "line vty 0 4\n transport input all\n";
+    let report = engine::audit("test.cfg", config, &rules);
+    let ids: Vec<&str> = report.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert!(ids.contains(&"cisco-ios-vty-transport-all"));
 }
 
 #[test]
