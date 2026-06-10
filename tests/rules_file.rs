@@ -60,4 +60,26 @@ fn example_config_findings_are_section_aware() {
         .find(|f| f.rule_id == "cisco-ios-telnet-enabled")
         .expect("telnet finding");
     assert_eq!(telnet.line, Some(19));
+
+    // Credential and service-hardening rules fire on the example.
+    for expected in [
+        "cisco-ios-username-plaintext-password",
+        "cisco-ios-ftp-plaintext-credentials",
+        "cisco-ios-no-aaa-new-model",
+        "cisco-ios-snmp-host-not-v3",
+        "cisco-ios-ntp-unauthenticated",
+    ] {
+        assert!(ids.contains(&expected), "expected finding for {expected}");
+    }
+}
+
+#[test]
+fn snmp_host_rule_skips_v3_and_keyed_ntp_is_ignored() {
+    let rules = load_rules(&manifest_path("rules/cisco-ios.toml")).unwrap();
+    let config = "snmp-server host 192.0.2.1 version 3 priv opsuser\n\
+                  ntp server 192.0.2.2 key 1\n";
+    let report = engine::audit("test.cfg", config, &rules);
+    let ids: Vec<&str> = report.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert!(!ids.contains(&"cisco-ios-snmp-host-not-v3"));
+    assert!(!ids.contains(&"cisco-ios-ntp-unauthenticated"));
 }
